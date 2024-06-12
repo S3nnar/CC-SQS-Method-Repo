@@ -67,6 +67,7 @@ def process_message(message):
         print(f"Error processing message: {e}")
 
 def receive_messages():
+    print("Started receiving messages!")
     while True:
         response = sqs_client.receive_message(
             QueueUrl=queue_url,
@@ -89,6 +90,7 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
+    print("Start!")
     from threading import Thread
     # Start the message receiving in a separate thread
     thread = Thread(target=receive_messages)
@@ -96,3 +98,4 @@ if __name__ == "__main__":
 
     # Start the Flask app
     app.run(host='0.0.0.0', port=8080)
+    print("Test")

@@ -1,4 +1,4 @@
-Flask==2.0.2
-boto3==1.18.70
-Pillow==8.3.1
-requests==2.26.0
+Flask==2.1.2
+boto3==1.26.65  # Neueste stabile Version von boto3
+Pillow==9.4.0  # Neueste stabile Version von Pillow
+requests==2.31.0  # Neueste stabile Version von requests

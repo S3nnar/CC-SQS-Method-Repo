@@ -97,5 +97,5 @@ if __name__ == "__main__":
     thread.start()
 
     # Start the Flask app
-    app.run(host='0.0.0.0', port=8080)
+    app.run(threaded = True, host='0.0.0.0', port=8080)
     print("Test")

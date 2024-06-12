@@ -7,6 +7,7 @@ import time
 import json
 import os
 from flask import Flask, request, jsonify
+import watchtower
 
 app = Flask(__name__)
 
@@ -19,6 +20,12 @@ sns_client = boto3.client('sns', region_name=region)
 
 queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 
+# Setup CloudWatch logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs')
+logger.addHandler(handler)
+
 def capture_frame(base64_string):
     # Decoding the base64 string to image
     try:
@@ -27,6 +34,7 @@ def capture_frame(base64_string):
         return image
     except Exception as e:
         print(f"Error converting base64 string to image: {e}")
+        logger.error(f"Error converting base64 string to image: {e}")
         return None
 
 def process_message(message):
@@ -36,6 +44,7 @@ def process_message(message):
 
         if not topic_arn:
             print("Topic ARN is missing in the message.")
+            logger.error("Topic ARN is missing in the message.")
             return
 
         # Assuming the frame is stored in 'frame' key in message
@@ -43,6 +52,7 @@ def process_message(message):
 
         if not frame_base64:
             print("Frame is missing in the message.")
+            logger.info("Frame is missing in the message.")
             return
 
         image = capture_frame(frame_base64)
@@ -51,9 +61,11 @@ def process_message(message):
             # Perform any processing here
             status_message = "Image conversion successful"
             print(status_message)
+            logger.info("Image conversion successful")
         else:
             status_message = "Image conversion failed"
             print(status_message)
+            logger.info("Image conversion failed")
 
         # Send a message to SNS topic
         response = sns_client.publish(
@@ -62,12 +74,15 @@ def process_message(message):
             Subject='Image Processing Result'
         )
         print(f"SNS publish response: {response}")
+        logger.info()
 
     except Exception as e:
         print(f"Error processing message: {e}")
+        logger.error(f"Error processing message: {e}")
 
 def receive_messages():
     print("Started receiving messages!")
+    logger.info("Started receiving messages!")
     while True:
         response = sqs_client.receive_message(
             QueueUrl=queue_url,
@@ -84,6 +99,7 @@ def receive_messages():
                 )
         else:
             print("No messages to process. Waiting...")
+            logger.info("No messages to process. Waiting...")
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -91,6 +107,7 @@ def health_check():
 
 if __name__ == "__main__":
     print("Start!")
+    logger.info("Start!")
     from threading import Thread
     # Start the message receiving in a separate thread
     thread = Thread(target=receive_messages)
@@ -99,3 +116,4 @@ if __name__ == "__main__":
     # Start the Flask app
     app.run(threaded = True, host='0.0.0.0', port=8080)
     print("Test")
+    logger.info("Test")

@@ -6,6 +6,9 @@ import requests
 import time
 import json
 import os
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 account_id = os.getenv('ACCOUNT_ID')
 queue_name = os.getenv('QUEUE_NAME')
@@ -63,7 +66,7 @@ def process_message(message):
     except Exception as e:
         print(f"Error processing message: {e}")
 
-def main():
+def receive_messages():
     while True:
         response = sqs_client.receive_message(
             QueueUrl=queue_url,
@@ -81,5 +84,15 @@ def main():
         else:
             print("No messages to process. Waiting...")
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 if __name__ == "__main__":
-    main()
+    from threading import Thread
+    # Start the message receiving in a separate thread
+    thread = Thread(target=receive_messages)
+    thread.start()
+
+    # Start the Flask app
+    app.run(host='0.0.0.0', port=8081)

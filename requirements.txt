@@ -3,3 +3,6 @@ Werkzeug==0.16.1
 boto3==1.26.65  # Neueste stabile Version von boto3
 Pillow==9.4.0  # Neueste stabile Version von Pillow
 requests==2.31.0  # Neueste stabile Version von requests
+Jinja2==2.11.3
+MarkupSafe==1.1.1
+

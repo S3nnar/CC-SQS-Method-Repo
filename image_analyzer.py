@@ -6,6 +6,7 @@ import requests
 import time
 import json
 import os
+import logging
 from flask import Flask, request, jsonify
 import watchtower
 
@@ -100,6 +101,7 @@ def receive_messages():
         else:
             print("No messages to process. Waiting...")
             logger.info("No messages to process. Waiting...")
+            time.sleep(30)  # Sleep to reduce CPU usage when no messages are received
 
 @app.route('/health', methods=['GET'])
 def health_check():

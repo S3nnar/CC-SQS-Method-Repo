@@ -9,6 +9,7 @@ from flask import Flask, jsonify
 import watchtower
 import paho.mqtt.client as mqtt
 from threading import Thread
+import time
 
 app = Flask(__name__)
 
@@ -16,9 +17,27 @@ account_id = os.getenv('ACCOUNT_ID')
 queue_name = os.getenv('QUEUE_NAME')
 region = os.getenv('REGION')
 mqtt_endpoint = os.getenv('IOT_ENDPOINT')
-cert_file = "certificate.pem.crt"
-key_file = "private.pem.key"
-ca_file = "root-CA.crt"
+
+# AWS Secrets Manager client
+secrets_client = boto3.client('secretsmanager', region_name=region)
+
+# Retrieve the MQTT certificates from Secrets Manager
+secret_name = os.getenv('SECRETS_ARN')
+response = secrets_client.get_secret_value(SecretId=secret_name)
+secrets = json.loads(response['SecretString'])
+
+ca_file_content = secrets['ca_file']
+certificate_pem_content = secrets['certificate_pem']
+private_key_content = secrets['private_key']
+
+# Write secrets to temporary files
+with open("/tmp/ca_file.crt", "w") as ca_file:
+    ca_file.write(ca_file_content)
+with open("/tmp/certificate.pem.crt", "w") as cert_file:
+    cert_file.write(certificate_pem_content)
+with open("/tmp/private.pem.key", "w") as key_file:
+    key_file.write(private_key_content)
+
 aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
 aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
 
@@ -120,7 +139,7 @@ if __name__ == "__main__":
 
     client.on_connect = on_connect
     client.on_message = on_message
-    client.tls_set(ca_certs=ca_file, certfile=cert_file, keyfile=key_file)
+    client.tls_set(ca_certs="/tmp/ca_file.crt", certfile="/tmp/certificate.pem.crt", keyfile="/tmp/private.pem.key")
     client.username_pw_set(aws_access_key_id, aws_secret_access_key)
     client.connect(mqtt_endpoint, 8883, 60)
 

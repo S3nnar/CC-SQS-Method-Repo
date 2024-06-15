@@ -29,8 +29,12 @@ queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 # Setup CloudWatch logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs')
+handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs', 
+                                          boto3_session=boto3.Session(aws_access_key_id=aws_access_key_id,
+                                                                      aws_secret_access_key=aws_secret_access_key))
+
 logger.addHandler(handler)
+logger.info("Python script started")
 
 # Define the MQTT client
 client = mqtt.Client()

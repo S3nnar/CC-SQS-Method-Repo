@@ -22,7 +22,9 @@ mqtt_endpoint = os.getenv('IOT_ENDPOINT')
 secrets_client = boto3.client('secretsmanager', region_name=region)
 
 # Retrieve the MQTT certificates from Secrets Manager
-secret_name = os.getenv('SECRETS_ARN')
+secret_name = os.getenv('SECRETS_MANAGER_ARN')  # Updated variable name
+if not secret_name:
+    raise ValueError("No SECRETS_MANAGER_ARN found in environment variables")
 response = secrets_client.get_secret_value(SecretId=secret_name)
 secrets = json.loads(response['SecretString'])
 

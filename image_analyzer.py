@@ -29,10 +29,8 @@ queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 # Setup CloudWatch logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs', 
-                                          boto3_session=boto3.Session(aws_access_key_id=aws_access_key_id,
-                                                                      aws_secret_access_key=aws_secret_access_key))
-
+cloudwatch_client = boto3.client('logs', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=region)
+handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs', boto3_client=cloudwatch_client)
 logger.addHandler(handler)
 logger.info("Python script started")
 

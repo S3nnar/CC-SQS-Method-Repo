@@ -23,7 +23,6 @@ aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
 aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
 
 sqs_client = boto3.client('sqs', region_name=region)
-sns_client = boto3.client('sns', region_name=region)
 
 queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 
@@ -64,13 +63,6 @@ def process_message(message):
         else:
             status_message = "Image conversion failed"
             print(status_message)
-
-        response = sns_client.publish(
-            TopicArn=topic_arn,
-            Message=status_message,
-            Subject='Image Processing Result'
-        )
-        print(f"SNS publish response: {response}")
         received_count += 1
 
     except Exception as e:
@@ -86,6 +78,7 @@ def receive_messages():
         )
 
         if 'Messages' in response:
+            print("Received message via SQS!")
             for message in response['Messages']:
                 process_message(message['Body'])
                 sqs_client.delete_message(
@@ -140,6 +133,7 @@ if __name__ == "__main__":
 
     subscribe_result = subscribe_future.result()
     print(f"Subscribed with {str(subscribe_result['qos'])}")
+    print(f"Subscribed with {str(subscribe_result['topic'])}")
 
     app.run(threaded=True, host='0.0.0.0', port=8080)
 

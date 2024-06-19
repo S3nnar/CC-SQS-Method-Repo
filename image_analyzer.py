@@ -31,6 +31,16 @@ print("Python script started")
 received_all_event = Event()
 received_count = 0
 
+def test_sqs_connection():
+    try:
+        response = sqs_client.get_queue_attributes(
+            QueueUrl=queue_url,
+            AttributeNames=['All']
+        )
+        print("Successfully connected to SQS. Queue Attributes:", response['Attributes'])
+    except Exception as e:
+        print(f"Failed to connect to SQS: {e}")
+
 def capture_frame(base64_string):
     try:
         image_data = base64.b64decode(base64_string.split(',')[1])
@@ -105,6 +115,7 @@ def health_check():
 
 if __name__ == "__main__":
     print("Start!")
+    test_sqs_connection()
     thread = Thread(target=receive_messages)
     thread.start()
 

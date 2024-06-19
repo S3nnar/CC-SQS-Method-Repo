@@ -5,8 +5,9 @@ from PIL import Image
 import json
 import os
 from flask import Flask, jsonify
-import paho.mqtt.client as mqtt
-from threading import Thread
+from awscrt import mqtt
+from awsiot import mqtt_connection_builder
+from threading import Thread, Event
 import time
 
 os.environ['PYTHONUNBUFFERED'] = '1'
@@ -28,8 +29,8 @@ queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 
 print("Python script started")
 
-# Define the MQTT client
-client = mqtt.Client()
+received_all_event = Event()
+received_count = 0
 
 def capture_frame(base64_string):
     try:
@@ -41,6 +42,7 @@ def capture_frame(base64_string):
         return None
 
 def process_message(message):
+    global received_count
     try:
         message_body = json.loads(message)
         topic_arn = message_body.get('Topic')
@@ -69,6 +71,7 @@ def process_message(message):
             Subject='Image Processing Result'
         )
         print(f"SNS publish response: {response}")
+        received_count += 1
 
     except Exception as e:
         print(f"Error processing message: {e}")
@@ -93,16 +96,15 @@ def receive_messages():
             print("No messages to process. Waiting...")
             time.sleep(30)
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Connected to MQTT Broker")
-        client.subscribe("masterTopic")
-    else:
-        print("Failed to connect, return code %d\n", rc)
+def on_connection_interrupted(connection, error, **kwargs):
+    print(f"Connection interrupted. Error: {error}")
 
-def on_message(client, userdata, msg):
-    print(f"Received message: {msg.payload.decode()} from topic: {msg.topic}")
-    process_message(msg.payload.decode())
+def on_connection_resumed(connection, return_code, session_present, **kwargs):
+    print(f"Connection resumed. Return code: {return_code}, session present: {session_present}")
+
+def on_message_received(topic, payload, **kwargs):
+    print(f"Received message from topic '{topic}': {payload}")
+    process_message(payload.decode())
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -113,11 +115,34 @@ if __name__ == "__main__":
     thread = Thread(target=receive_messages)
     thread.start()
 
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.tls_set(ca_certs="certificates/AmazonRootCA1.pem", certfile="certificates/f20bdd251ad976251adec198e4af213e5ae49e897dc970a211f71f024205695e-certificate.pem.crt", keyfile="certificates/f20bdd251ad976251adec198e4af213e5ae49e897dc970a211f71f024205695e-private.pem.key")
-    client.username_pw_set(aws_access_key_id, aws_secret_access_key)
-    client.connect(mqtt_endpoint, 8883, 60)
+    mqtt_connection = mqtt_connection_builder.mtls_from_path(
+        endpoint=mqtt_endpoint,
+        port=8883,
+        cert_filepath="certificates/f20bdd251ad976251adec198e4af213e5ae49e897dc970a211f71f024205695e-certificate.pem.crt",
+        pri_key_filepath="certificates/f20bdd251ad976251adec198e4af213e5ae49e897dc970a211f71f024205695e-private.pem.key",
+        ca_filepath="certificates/AmazonRootCA1.pem",
+        on_connection_interrupted=on_connection_interrupted,
+        on_connection_resumed=on_connection_resumed,
+        client_id="myClientId",
+        clean_session=False,
+        keep_alive_secs=30,
+    )
+
+    connect_future = mqtt_connection.connect()
+    connect_future.result()
+    print("Connected!")
+
+    subscribe_future, packet_id = mqtt_connection.subscribe(
+        topic="masterTopic",
+        qos=mqtt.QoS.AT_LEAST_ONCE,
+        callback=on_message_received
+    )
+
+    subscribe_result = subscribe_future.result()
+    print(f"Subscribed with {str(subscribe_result['qos'])}")
 
     app.run(threaded=True, host='0.0.0.0', port=8080)
-    client.loop_forever()
+
+    received_all_event.wait()
+    mqtt_connection.disconnect().result()
+    print("Disconnected!")

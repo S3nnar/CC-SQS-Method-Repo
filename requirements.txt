@@ -7,4 +7,4 @@ Jinja2==2.11.3
 MarkupSafe==1.1.1
 watchtower==2.0.1
 awscrt==0.13.7
-awsiotsdk==1.8.3
+awsiotsdk==1.21.5

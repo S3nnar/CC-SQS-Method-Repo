@@ -4,12 +4,12 @@ from io import BytesIO
 from PIL import Image
 import json
 import os
-import logging
 from flask import Flask, jsonify
-import watchtower
 import paho.mqtt.client as mqtt
 from threading import Thread
 import time
+
+os.environ['PYTHONUNBUFFERED'] = '1'
 
 app = Flask(__name__)
 
@@ -26,13 +26,7 @@ sns_client = boto3.client('sns', region_name=region)
 
 queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 
-# Setup CloudWatch logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-cloudwatch_client = boto3.client('logs', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=region)
-handler = watchtower.CloudWatchLogHandler(log_group='AppRunnerLogs', boto3_client=cloudwatch_client)
-logger.addHandler(handler)
-logger.info("Python script started")
+print("Python script started")
 
 # Define the MQTT client
 client = mqtt.Client()
@@ -43,7 +37,7 @@ def capture_frame(base64_string):
         image = Image.open(BytesIO(image_data))
         return image
     except Exception as e:
-        logger.error(f"Error converting base64 string to image: {e}")
+        print(f"Error converting base64 string to image: {e}")
         return None
 
 def process_message(message):
@@ -53,34 +47,34 @@ def process_message(message):
         frame_base64 = message_body.get('frame')
 
         if not topic_arn:
-            logger.error("Topic ARN is missing in the message.")
+            print("Topic ARN is missing in the message.")
             return
 
         if not frame_base64:
-            logger.info("Frame is missing in the message.")
+            print("Frame is missing in the message.")
             return
 
         image = capture_frame(frame_base64)
 
         if image:
             status_message = "Image conversion successful"
-            logger.info(status_message)
+            print(status_message)
         else:
             status_message = "Image conversion failed"
-            logger.info(status_message)
+            print(status_message)
 
         response = sns_client.publish(
             TopicArn=topic_arn,
             Message=status_message,
             Subject='Image Processing Result'
         )
-        logger.info(f"SNS publish response: {response}")
+        print(f"SNS publish response: {response}")
 
     except Exception as e:
-        logger.error(f"Error processing message: {e}")
+        print(f"Error processing message: {e}")
 
 def receive_messages():
-    logger.info("Started receiving messages!")
+    print("Started receiving messages!")
     while True:
         response = sqs_client.receive_message(
             QueueUrl=queue_url,
@@ -96,18 +90,18 @@ def receive_messages():
                     ReceiptHandle=message['ReceiptHandle']
                 )
         else:
-            logger.info("No messages to process. Waiting...")
+            print("No messages to process. Waiting...")
             time.sleep(30)
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        logger.info("Connected to MQTT Broker")
+        print("Connected to MQTT Broker")
         client.subscribe("masterTopic")
     else:
-        logger.error("Failed to connect, return code %d\n", rc)
+        print("Failed to connect, return code %d\n", rc)
 
 def on_message(client, userdata, msg):
-    logger.info(f"Received message: {msg.payload.decode()} from topic: {msg.topic}")
+    print(f"Received message: {msg.payload.decode()} from topic: {msg.topic}")
     process_message(msg.payload.decode())
 
 @app.route('/health', methods=['GET'])
@@ -115,7 +109,7 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
-    logger.info("Start!")
+    print("Start!")
     thread = Thread(target=receive_messages)
     thread.start()
 

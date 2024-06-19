@@ -81,23 +81,30 @@ def process_message(message):
 def receive_messages():
     print("Started receiving messages!")
     while True:
-        response = sqs_client.receive_message(
-            QueueUrl=queue_url,
-            MaxNumberOfMessages=10,
-            WaitTimeSeconds=20
-        )
+        try:
+            response = sqs_client.receive_message(
+                QueueUrl=queue_url,
+                MaxNumberOfMessages=10,
+                WaitTimeSeconds=20
+            )
+            
+            print("Received response from SQS:", response)
 
-        if 'Messages' in response:
-            print("Received message via SQS!")
-            for message in response['Messages']:
-                process_message(message['Body'])
-                sqs_client.delete_message(
-                    QueueUrl=queue_url,
-                    ReceiptHandle=message['ReceiptHandle']
-                )
-        else:
-            print("No messages to process. Waiting...")
-            time.sleep(30)
+            if 'Messages' in response:
+                print("Received message via SQS!")
+                for message in response['Messages']:
+                    print("Processing message:", message)
+                    process_message(message['Body'])
+                    sqs_client.delete_message(
+                        QueueUrl=queue_url,
+                        ReceiptHandle=message['ReceiptHandle']
+                    )
+                    print("Deleted message from SQS")
+            else:
+                print("No messages to process. Waiting...")
+                time.sleep(30)
+        except Exception as e:
+            print(f"Error receiving messages: {e}")
 
 def on_connection_interrupted(connection, error, **kwargs):
     print(f"Connection interrupted. Error: {error}")

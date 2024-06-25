@@ -10,7 +10,7 @@ from awsiot import mqtt_connection_builder
 from threading import Thread, Event
 import time
 
-os.environ['PYTHONUNBUFFERED'] = '0'
+os.environ['PYTHONUNBUFFERED'] = '1'
 
 app = Flask(__name__)
 
@@ -26,7 +26,7 @@ sqs_client = boto3.client('sqs', region_name=region)
 
 queue_url = f'https://sqs.{region}.amazonaws.com/{account_id}/{queue_name}'
 
-# print("Python script started")
+print("Python script started")
 
 received_all_event = Event()
 received_count = 0
@@ -37,7 +37,7 @@ def test_sqs_connection():
             QueueUrl=queue_url,
             AttributeNames=['All']
         )
-        # print("Successfully connected to SQS. Queue Attributes:", response['Attributes'])
+        print("Successfully connected to SQS. Queue Attributes:", response['Attributes'])
     except Exception as e:
         print(f"Failed to connect to SQS: {e}")
 
@@ -58,28 +58,28 @@ def process_message(message):
         frame_base64 = message_body.get('frame')
 
         if not topic_arn:
-            # print("Topic ARN is missing in the message.")
+            print("Topic ARN is missing in the message.")
             return
 
         if not frame_base64:
-            # print("Frame is missing in the message.")
+            print("Frame is missing in the message.")
             return
 
         image = capture_frame(frame_base64)
 
         if image:
             status_message = "Image conversion successful"
-            # print(status_message)
+            print(status_message)
         else:
             status_message = "Image conversion failed"
-            # print(status_message)
+            print(status_message)
         received_count += 1
 
     except Exception as e:
         print(f"Error processing message: {e}")
 
 def receive_messages():
-    # print("Started receiving messages!")
+    print("Started receiving messages!")
     while True:
         try:
             response = sqs_client.receive_message(
@@ -88,10 +88,10 @@ def receive_messages():
                 WaitTimeSeconds=20
             )
             
-            # print("Received response from SQS:", response)
+            print("Received response from SQS:", response)
 
             if 'Messages' in response:
-                # print("Received message via SQS!")
+                print("Received message via SQS!")
                 for message in response['Messages']:
                     print("Processing message:", message)
                     process_message(message['Body'])
@@ -99,23 +99,21 @@ def receive_messages():
                         QueueUrl=queue_url,
                         ReceiptHandle=message['ReceiptHandle']
                     )
-                    # print("Deleted message from SQS")
+                    print("Deleted message from SQS")
             else:
-                # print("No messages to process. Waiting...")
+                print("No messages to process. Waiting...")
                 time.sleep(30)
         except Exception as e:
             print(f"Error receiving messages: {e}")
 
 def on_connection_interrupted(connection, error, **kwargs):
-    return
-    # print(f"Connection interrupted. Error: {error}")
+    print(f"Connection interrupted. Error: {error}")
 
 def on_connection_resumed(connection, return_code, session_present, **kwargs):
-    return
-    # print(f"Connection resumed. Return code: {return_code}, session present: {session_present}")
+    print(f"Connection resumed. Return code: {return_code}, session present: {session_present}")
 
 def on_message_received(topic, payload, **kwargs):
-    # print(f"Received message from topic '{topic}': {payload}")
+    print(f"Received message from topic '{topic}': {payload}")
     process_message(payload.decode())
 
 @app.route('/health', methods=['GET'])
@@ -123,7 +121,7 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
-    # print("Start!")
+    print("Start!")
     test_sqs_connection()
     thread = Thread(target=receive_messages)
     thread.start()
@@ -143,7 +141,7 @@ if __name__ == "__main__":
 
     connect_future = mqtt_connection.connect()
     connect_future.result()
-    # print("Connected!")
+    print("Connected!")
 
     subscribe_future, packet_id = mqtt_connection.subscribe(
         topic="masterTopic",
@@ -152,11 +150,11 @@ if __name__ == "__main__":
     )
 
     subscribe_result = subscribe_future.result()
-    # print(f"Subscribed with {str(subscribe_result['qos'])}")
-    # print(f"Subscribed with {str(subscribe_result['topic'])}")
+    print(f"Subscribed with {str(subscribe_result['qos'])}")
+    print(f"Subscribed with {str(subscribe_result['topic'])}")
 
     app.run(threaded=True, host='0.0.0.0', port=8080)
 
     received_all_event.wait()
     mqtt_connection.disconnect().result()
-    # print("Disconnected!")
+    print("Disconnected!")

@@ -10,7 +10,7 @@ from awsiot import mqtt_connection_builder
 from threading import Thread, Event
 import time
 
-os.environ['PYTHONUNBUFFERED'] = '1'
+#os.environ['PYTHONUNBUFFERED'] = '1'
 
 app = Flask(__name__)
 
